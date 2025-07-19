@@ -1,0 +1,16 @@
+The previous response was malformed and couldn't be parsed. Please fix it to match the exact JSON format:
+
+Original response:
+{original_response}
+
+Required format - each location must have ALL these fields:
+{{
+  "original_text": "text from article",
+  "standardized_name": "geocodable name", 
+  "context": "surrounding context",
+  "confidence": "high/medium/low",
+  "location_type": "city/state/country/landmark/region/nickname/generic",
+  "disambiguation_hints": ["hint1", "hint2"],
+}}
+
+Return ONLY the corrected JSON array, no other text:

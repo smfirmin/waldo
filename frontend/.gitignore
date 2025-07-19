@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Coverage reports
+coverage/
+
+# Test artifacts
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,48 @@
+Analyze this news article and extract geographic locations with their context.
+
+For each location found, provide:
+1. The exact text as mentioned in the article
+2. A standardized name for geocoding (resolve nicknames/abbreviations)
+3. Context clues from the surrounding text (1-2 sentences)
+4. Confidence level (high/medium/low)
+5. Location type (city/state/country/landmark/region/nickname/generic)
+6. Disambiguation hints (other location clues from article)
+7. Geographic scale level (1=continent, 2=country, 3=state, 4=region, 5=city, 6=neighborhood, 7=landmark)
+
+Special handling:
+- Colloquial names: "Big Apple" → "New York City"
+- Abbreviations: "LA" → "Los Angeles" (check context for state/country clues)
+- Generic terms: "downtown" → include city context if available
+- Ambiguous names: "Paris" → look for country/state context clues
+- Context-dependent: "the border" → specify which border if context allows
+
+Return JSON array format:
+[
+  {{
+    "original_text": "the Big Apple",
+    "standardized_name": "New York City",
+    "context": "tourism statistics and visitor numbers mentioned",
+    "confidence": "high",
+    "location_type": "nickname",
+    "disambiguation_hints": ["New York", "tourism", "visitors"],
+  }},
+  {{
+    "original_text": "United States",
+    "standardized_name": "United States",
+    "context": "mentioned in context of national policy",
+    "confidence": "high",
+    "location_type": "country",
+    "disambiguation_hints": ["national", "policy"],
+  }},
+  {{
+    "original_text": "Paris",
+    "standardized_name": "Paris",
+    "context": "mentioned alongside Texas highways and state politics",
+    "confidence": "medium",
+    "location_type": "city",
+    "disambiguation_hints": ["Texas", "state", "highway"],
+  }}
+]
+
+Article text:
+{article_text}

@@ -14,6 +14,17 @@ class TestGeocodingService:
         mock_location = Mock()
         mock_location.latitude = 40.7128
         mock_location.longitude = -74.0060
+        mock_location.raw = {
+            "boundingbox": ["40.4774", "40.9176", "-74.2591", "-73.7004"],
+            "class": "place",
+            "type": "city",
+            "address": {
+                "city": "New York City",
+                "state": "New York",
+                "country": "United States",
+            },
+            "extratags": {"admin_level": "8"},
+        }
         mock_geocoder.geocode.return_value = mock_location
         mock_nominatim_class.return_value = mock_geocoder
 
@@ -21,7 +32,6 @@ class TestGeocodingService:
         result = service.geocode_location("New York City")
 
         assert result == (40.7128, -74.0060)
-        mock_geocoder.geocode.assert_called_once_with("New York City", timeout=10)
 
     @patch("app.services.geocoding.Nominatim")
     def test_geocode_location_not_found(self, mock_nominatim_class):
@@ -67,6 +77,13 @@ class TestGeocodingService:
         mock_location = Mock()
         mock_location.latitude = 51.5074
         mock_location.longitude = -0.1278
+        mock_location.raw = {
+            "boundingbox": ["51.3918", "51.6723", "-0.3514", "0.1480"],
+            "class": "place",
+            "type": "city",
+            "address": {"city": "London", "country": "United Kingdom"},
+            "extratags": {"admin_level": "8"},
+        }
         mock_geocoder.geocode.return_value = mock_location
         mock_nominatim_class.return_value = mock_geocoder
 

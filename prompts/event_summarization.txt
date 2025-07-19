@@ -1,0 +1,11 @@
+Based on the following news article, provide a brief 1 sentence summary of what happened at "{location_name}".
+If the location is only mentioned in passing or no specific events are described there, return "Mentioned in article."
+
+Focus only on events, actions, or incidents that occurred at this specific location.
+
+Article text:
+{article_text}
+
+Location: {location_name}
+
+Summary:
