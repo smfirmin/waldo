@@ -151,8 +151,8 @@ class TestExtractEndpoint:
         assert response.status_code == 400
         data = json.loads(response.data)
         assert "Invalid request data" in data["error"]
-        
-        # Whitespace only should fail validation  
+
+        # Whitespace only should fail validation
         response = client.post("/api/extract", json={"input": "   "})
         assert response.status_code == 400
 
@@ -170,7 +170,7 @@ class TestExtractEndpoint:
         response = client.post("/api/extract", json={})
         assert response.status_code == 400
         data = json.loads(response.data)
-        
+
         # Error responses should have these required fields
         assert "error_code" in data
         assert "message" in data
@@ -182,36 +182,42 @@ class TestExtractEndpoint:
         # Valid URLs should be processed as URLs (not fail validation)
         url_inputs = [
             "https://example.com/article",
-            "http://news.site.com/story", 
-            "https://www.bbc.com/news/world-123"
+            "http://news.site.com/story",
+            "https://www.bbc.com/news/world-123",
         ]
-        
+
         for url_input in url_inputs:
             response = client.post("/api/extract", json={"input": url_input})
             # Should not fail validation (400), but may fail extraction (422/500)
             assert response.status_code in [200, 422, 500]
 
     @pytest.mark.skipif(
-        not os.getenv("GEMINI_API_KEY"), 
-        reason="Requires GEMINI_API_KEY for end-to-end test"
+        not os.getenv("GEMINI_API_KEY"),
+        reason="Requires GEMINI_API_KEY for end-to-end test",
     )
     def test_end_to_end_integration(self, client):
         """End-to-end test with real AI service"""
         test_input = "There was a meeting in Paris, France."
-        
+
         response = client.post("/api/extract", json={"input": test_input})
-        
+
         if response.status_code == 200:
             data = json.loads(response.data)
-            
+
             # Verify complete response structure
-            required_fields = ["article_text", "locations", "processing_time", "request_id", "session_id"]
+            required_fields = [
+                "article_text",
+                "locations",
+                "processing_time",
+                "request_id",
+                "session_id",
+            ]
             for field in required_fields:
                 assert field in data
-            
+
             assert isinstance(data["locations"], list)
             assert isinstance(data["processing_time"], (int, float))
-            
+
             # Verify location structure if any found
             for location in data["locations"]:
                 assert "name" in location

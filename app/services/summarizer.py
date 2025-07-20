@@ -5,7 +5,7 @@ import os
 class EventSummarizer:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
         self.prompt_template = self._load_prompt_template()
 
     def _load_prompt_template(self) -> str:
