@@ -10,6 +10,7 @@ Try it out: **[https://waldo-production-d5b9.up.railway.app/](https://waldo-prod
 
 - **Dual Input Support**: Extract from URLs or paste article text directly
 - **AI-Powered Location Extraction**: Uses Google Gemini 2.0 Flash for intelligent location identification
+- **Real-time Progress Updates**: Live progress tracking with Server-Sent Events during processing
 - **Smart Geocoding**: Converts location names to coordinates with boundary detection
 - **Spatial Filtering**: Removes duplicate and hierarchically contained locations
 - **Interactive Map**: Modern dark-themed map with custom markers and popups
@@ -92,6 +93,7 @@ docker run -p 8000:8000 -e GEMINI_API_KEY=your_api_key_here waldo
 
 - `GET /` - Serve the frontend application
 - `POST /api/extract` - Extract locations from article URL or text
+- `GET /api/progress/<session_id>` - Server-Sent Events stream for real-time progress updates
 - `GET /api/health` - Health check endpoint
 
 ## Project Structure
