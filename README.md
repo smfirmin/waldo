@@ -129,6 +129,5 @@ This application is configured for easy deployment on Railway. See [docs/DEPLOYM
 
 - 📚 [Deployment Guide](docs/DEPLOYMENT.md) - Railway deployment instructions
 - 🧪 [Testing Guide](docs/TESTING.md) - Test setup and execution
-- 🎨 [UI Improvements](docs/UI_IMPROVEMENTS.md) - Frontend enhancement ideas
-- 📋 [Requirements](docs/REQUIREMENTS.md) - Technical specifications
+- 📋 [Requirements](docs/REQUIREMENTS.md) - Technical specifications of assignment
 - 📝 [TODO](docs/TODO.md) - Planned improvements and roadmap
