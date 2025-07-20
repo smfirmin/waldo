@@ -15,7 +15,6 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html'],
 
-
   // Mock static assets
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
