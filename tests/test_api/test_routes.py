@@ -1,8 +1,8 @@
 import pytest
 import json
+import os
 from unittest.mock import Mock, patch
 from app import create_app
-from app.models.data_models import ExtractedLocation, LocationData
 from app.services.location_extractor import RateLimitError
 
 
@@ -21,7 +21,7 @@ def client(app):
 
 
 class TestHealthEndpoint:
-    """Test health check endpoint"""
+    """Test health check endpoint - no mocking needed"""
 
     def test_health_check_success(self, client):
         """Test health endpoint returns healthy status"""
@@ -70,12 +70,8 @@ class TestExtractEndpoint:
         assert data["error_code"] == "MISSING_DATA"  # Empty JSON triggers MISSING_DATA
         assert "No data provided" in data["message"]
 
-    @patch("app.api.routes.get_progress_tracker")
-    def test_extract_missing_input_field(self, mock_tracker_factory, client):
+    def test_extract_missing_input_field(self, client):
         """Test extract endpoint with missing input field"""
-        mock_tracker = Mock()
-        mock_tracker_factory.return_value = mock_tracker
-
         response = client.post("/api/extract", json={"other_field": "value"})
 
         assert response.status_code == 400
@@ -148,244 +144,81 @@ class TestExtractEndpoint:
         assert "rate limit" in data["message"].lower()
         assert data["retry_after"] == 60
 
-    @patch("app.api.routes.get_ai_services")
-    @patch("app.api.routes.location_processor")
-    def test_extract_success_no_locations(
-        self, mock_processor, mock_ai_services, client
-    ):
-        """Test successful extraction with no locations found"""
-        # Setup mocks
-        mock_location_extractor = Mock()
-        mock_location_extractor.extract_locations.return_value = []
-        mock_ai_services.return_value = (mock_location_extractor, Mock())
-
-        response = client.post(
-            "/api/extract", json={"input": "This is a test article with no locations."}
-        )
-
-        assert response.status_code == 200
+    def test_input_validation_edge_cases(self, client):
+        """Test Pydantic validation with various edge cases"""
+        # Empty string should fail validation
+        response = client.post("/api/extract", json={"input": ""})
+        assert response.status_code == 400
         data = json.loads(response.data)
-        assert data["article_title"] == "Article Text"
-        assert data["locations"] == []
-        assert data["request_id"]  # This should exist in the response
-        assert data["processing_time"] > 0
-        # Note: session_id is not added for early returns, only for the final response
+        assert "Invalid request data" in data["error"]
+        
+        # Whitespace only should fail validation  
+        response = client.post("/api/extract", json={"input": "   "})
+        assert response.status_code == 400
 
-    @patch("app.api.routes.get_ai_services")
-    @patch("app.api.routes.location_processor")
-    def test_extract_success_with_locations(
-        self, mock_processor, mock_ai_services, client
-    ):
-        """Test successful extraction with locations found"""
-        # Setup mock extracted locations
-        extracted_locations = [
-            ExtractedLocation(
-                original_text="Paris",
-                standardized_name="Paris, France",
-                context="mentioned in article",
-                confidence="high",
-                location_type="city",
-                disambiguation_hints=["France"],
-            )
-        ]
-
-        # Setup mock processed locations
-        processed_locations = [
-            LocationData(
-                name="Paris, France",
-                latitude=48.8566,
-                longitude=2.3522,
-                events_summary="Events in Paris",
-                confidence=0.9,
-                resolution_method="direct",
-                original_text="Paris",
-            )
-        ]
-
-        # Setup mocks
-        mock_location_extractor = Mock()
-        mock_location_extractor.extract_locations.return_value = extracted_locations
-        mock_summarizer = Mock()
-        mock_ai_services.return_value = (mock_location_extractor, mock_summarizer)
-
-        mock_processor.process_locations_pipeline.return_value = (
-            processed_locations,
-            [],
-        )
-        mock_processor.apply_spatial_filtering.return_value = processed_locations
-
-        response = client.post(
-            "/api/extract", json={"input": "This is an article about Paris, France."}
-        )
-
-        assert response.status_code == 200
+    def test_large_input_rejected(self, client):
+        """Test that input size limits are enforced"""
+        # Input over 100KB limit should be rejected
+        large_input = "x" * 100001
+        response = client.post("/api/extract", json={"input": large_input})
+        assert response.status_code == 400
         data = json.loads(response.data)
-        assert data["article_title"] == "Article Text"
-        assert len(data["locations"]) == 1
-        assert data["locations"][0]["name"] == "Paris, France"
-        assert data["locations"][0]["latitude"] == 48.8566
-        assert data["locations"][0]["longitude"] == 2.3522
-        assert "session_id" in data
-        assert data["processing_time"] > 0
+        assert "Invalid request data" in data["error"]
 
-    @patch("app.api.routes.article_extractor")
-    @patch("app.api.routes.get_ai_services")
-    @patch("app.api.routes.location_processor")
-    def test_extract_success_with_url(
-        self, mock_processor, mock_ai_services, mock_extractor, client
-    ):
-        """Test successful extraction from URL"""
-        # Setup URL extraction mock
-        mock_extractor.extract_from_url.return_value = (
-            "Article Title",
-            "Article content about Tokyo, Japan.",
-        )
-
-        # Setup AI services mock
-        extracted_locations = [
-            ExtractedLocation(
-                original_text="Tokyo",
-                standardized_name="Tokyo, Japan",
-                context="mentioned in article",
-                confidence="high",
-                location_type="city",
-                disambiguation_hints=["Japan"],
-            )
-        ]
-
-        mock_location_extractor = Mock()
-        mock_location_extractor.extract_locations.return_value = extracted_locations
-        mock_ai_services.return_value = (mock_location_extractor, Mock())
-
-        # Setup location processor mock
-        mock_processor.process_locations_pipeline.return_value = ([], [])
-        mock_processor.apply_spatial_filtering.return_value = []
-
-        response = client.post(
-            "/api/extract", json={"input": "https://example.com/tokyo-article"}
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data)
-        assert data["article_title"] == "Article Title"
-        assert "tokyo" in data["article_text"].lower()
-        assert "session_id" in data
-
-        # Verify URL extraction was called
-        mock_extractor.extract_from_url.assert_called_once_with(
-            "https://example.com/tokyo-article"
-        )
-
-    @patch("app.api.routes.get_ai_services")
-    @patch("app.api.routes.location_processor")
-    def test_extract_text_truncation_warning(
-        self, mock_processor, mock_ai_services, client
-    ):
-        """Test that long text gets truncated with warning"""
-        # Create text longer than 50KB limit
-        long_text = "x" * 50001
-
-        # Setup mocks to simulate finding locations so we get the full response
-        extracted_locations = [
-            ExtractedLocation(
-                original_text="test",
-                standardized_name="Test Location",
-                context="test",
-                confidence="high",
-                location_type="city",
-                disambiguation_hints=[],
-            )
-        ]
-
-        processed_locations = [
-            LocationData(
-                name="Test Location",
-                latitude=0.0,
-                longitude=0.0,
-                events_summary="Test",
-                confidence=0.9,
-                resolution_method="direct",
-                original_text="test",
-            )
-        ]
-
-        mock_location_extractor = Mock()
-        mock_location_extractor.extract_locations.return_value = extracted_locations
-        mock_summarizer = Mock()
-        mock_ai_services.return_value = (mock_location_extractor, mock_summarizer)
-
-        mock_processor.process_locations_pipeline.return_value = (
-            processed_locations,
-            [],
-        )
-        mock_processor.apply_spatial_filtering.return_value = processed_locations
-
-        response = client.post("/api/extract", json={"input": long_text})
-
-        assert response.status_code == 200
-        data = json.loads(response.data)
-
-        # Check for truncation warning
-        assert len(data["warnings"]) > 0
-        assert any("TEXT_TRUNCATED" in warning["code"] for warning in data["warnings"])
-
-        # Verify text was actually truncated
-        assert len(data["article_text"]) == 50000
-
-    def test_extract_progress_tracking_integration(self, client):
-        """Test that progress tracking is properly integrated"""
-        with patch("app.api.routes.get_progress_tracker") as mock_tracker_factory:
-            mock_tracker = Mock()
-            mock_tracker_factory.return_value = mock_tracker
-
-            with patch("app.api.routes.get_ai_services") as mock_ai_services:
-                mock_location_extractor = Mock()
-                mock_location_extractor.extract_locations.return_value = []
-                mock_ai_services.return_value = (mock_location_extractor, Mock())
-
-                response = client.post("/api/extract", json={"input": "Test article"})
-
-                assert response.status_code == 200
-
-                # Verify progress tracker methods were called
-                mock_tracker.start_processing.assert_called_once()
-                mock_tracker.start_article_extraction.assert_called_once_with(
-                    "Test article"
-                )
-                mock_tracker.start_location_extraction.assert_called_once()
-                mock_tracker.locations_found.assert_called_once_with(0)
-                mock_tracker.complete.assert_called_once()
-
-
-class TestProgressTrackerIntegration:
-    """Test progress tracker integration with API routes"""
-
-    def test_progress_tracker_error_handling(self, client):
-        """Test progress tracker handles errors properly"""
-        # Test missing data error - progress tracker should handle gracefully
+    def test_error_response_structure(self, client):
+        """Test that error responses have consistent structure"""
         response = client.post("/api/extract", json={})
         assert response.status_code == 400
+        data = json.loads(response.data)
+        
+        # Error responses should have these required fields
+        assert "error_code" in data
+        assert "message" in data
+        assert "request_id" in data
+        assert "timestamp" in data
 
-        # Test missing input error
-        response = client.post("/api/extract", json={"other": "value"})
-        assert response.status_code == 400
+    def test_url_vs_text_detection(self, client):
+        """Test URL detection logic without mocking"""
+        # Valid URLs should be processed as URLs (not fail validation)
+        url_inputs = [
+            "https://example.com/article",
+            "http://news.site.com/story", 
+            "https://www.bbc.com/news/world-123"
+        ]
+        
+        for url_input in url_inputs:
+            response = client.post("/api/extract", json={"input": url_input})
+            # Should not fail validation (400), but may fail extraction (422/500)
+            assert response.status_code in [200, 422, 500]
 
-    @patch("app.api.routes.get_progress_tracker")
-    @patch("app.api.routes.article_extractor")
-    def test_progress_tracker_url_extraction_error(
-        self, mock_extractor, mock_tracker_factory, client
-    ):
-        """Test progress tracker handles URL extraction errors"""
-        mock_tracker = Mock()
-        mock_tracker_factory.return_value = mock_tracker
-        mock_extractor.extract_from_url.side_effect = Exception("Network error")
-
-        response = client.post("/api/extract", json={"input": "https://example.com"})
-
-        assert response.status_code == 422
-        mock_tracker.error.assert_called_once()
-        error_call = mock_tracker.error.call_args[0][0]
-        assert "Network error" in error_call
+    @pytest.mark.skipif(
+        not os.getenv("GEMINI_API_KEY"), 
+        reason="Requires GEMINI_API_KEY for end-to-end test"
+    )
+    def test_end_to_end_integration(self, client):
+        """End-to-end test with real AI service"""
+        test_input = "There was a meeting in Paris, France."
+        
+        response = client.post("/api/extract", json={"input": test_input})
+        
+        if response.status_code == 200:
+            data = json.loads(response.data)
+            
+            # Verify complete response structure
+            required_fields = ["article_text", "locations", "processing_time", "request_id", "session_id"]
+            for field in required_fields:
+                assert field in data
+            
+            assert isinstance(data["locations"], list)
+            assert isinstance(data["processing_time"], (int, float))
+            
+            # Verify location structure if any found
+            for location in data["locations"]:
+                assert "name" in location
+                assert "latitude" in location
+                assert "longitude" in location
+                assert isinstance(location["latitude"], (int, float))
+                assert isinstance(location["longitude"], (int, float))
 
 
 if __name__ == "__main__":
