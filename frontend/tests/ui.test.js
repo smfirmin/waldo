@@ -55,7 +55,7 @@ describe('UIManager', () => {
   describe('showError', () => {
     test('should show error section with message', () => {
       const errorMessage = 'Test error message';
-      
+
       uiManager.showError(errorMessage);
 
       expect(uiManager.statusCard.classList.contains('show')).toBe(true);
@@ -80,7 +80,7 @@ describe('UIManager', () => {
   describe('hideStatus', () => {
     test('should remove show class from status card', () => {
       uiManager.statusCard.classList.add('show');
-      
+
       uiManager.hideStatus();
 
       expect(uiManager.statusCard.classList.contains('show')).toBe(false);
@@ -91,7 +91,7 @@ describe('UIManager', () => {
     test('should switch to URL mode', () => {
       const urlToggle = document.getElementById('urlToggle');
       const textToggle = document.getElementById('textToggle');
-      
+
       uiManager.toggleInputMode('url');
 
       expect(urlToggle.classList.contains('active')).toBe(true);
@@ -104,7 +104,7 @@ describe('UIManager', () => {
     test('should switch to text mode', () => {
       const urlToggle = document.getElementById('urlToggle');
       const textToggle = document.getElementById('textToggle');
-      
+
       uiManager.toggleInputMode('text');
 
       expect(urlToggle.classList.contains('active')).toBe(false);
@@ -119,29 +119,34 @@ describe('UIManager', () => {
     test('should update results display with data', () => {
       const data = {
         article_title: 'Test Article',
-        locations: [
-          { name: 'Location 1' },
-          { name: 'Location 2' }
-        ],
-        processing_time: 2.5
+        locations: [{ name: 'Location 1' }, { name: 'Location 2' }],
+        processing_time: 2.5,
       };
 
       uiManager.updateResults(data);
 
-      expect(document.getElementById('articleTitle').textContent).toBe('Test Article');
-      expect(document.getElementById('locationsCount').textContent).toBe('2 locations found');
-      expect(document.getElementById('processingTime').textContent).toBe('Processed in 2.50s');
+      expect(document.getElementById('articleTitle').textContent).toBe(
+        'Test Article'
+      );
+      expect(document.getElementById('locationsCount').textContent).toBe(
+        '2 locations found'
+      );
+      expect(document.getElementById('processingTime').textContent).toBe(
+        'Processed in 2.50s'
+      );
     });
 
     test('should use default title when not provided', () => {
       const data = {
         locations: [],
-        processing_time: 1.0
+        processing_time: 1.0,
       };
 
       uiManager.updateResults(data);
 
-      expect(document.getElementById('articleTitle').textContent).toBe('Article');
+      expect(document.getElementById('articleTitle').textContent).toBe(
+        'Article'
+      );
     });
   });
 
@@ -168,14 +173,18 @@ describe('UIManager', () => {
       uiManager.urlInput.value = '';
       uiManager.urlInput.style.display = 'block';
 
-      expect(() => uiManager.getCurrentInput()).toThrow('Please enter a valid URL');
+      expect(() => uiManager.getCurrentInput()).toThrow(
+        'Please enter a valid URL'
+      );
     });
 
     test('should throw error for empty text input', () => {
       uiManager.textInput.value = '';
       uiManager.urlInput.style.display = 'none';
 
-      expect(() => uiManager.getCurrentInput()).toThrow('Please paste article text');
+      expect(() => uiManager.getCurrentInput()).toThrow(
+        'Please paste article text'
+      );
     });
   });
 

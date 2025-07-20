@@ -1,79 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Waldo - News Article Location Mapper</title>
-    
+
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
     <!-- Application CSS -->
     <link rel="stylesheet" href="/static/css/app.css" />
-</head>
-<body>
+  </head>
+  <body>
     <div class="app-container">
-        <div class="header-card">
-            <h1>Everything Happens Somewhere</h1>
-            <p>Extract and visualize locations mentioned in news articles</p>
+      <div class="header-card">
+        <h1>Everything Happens Somewhere</h1>
+        <p>Extract and visualize locations mentioned in news articles</p>
+      </div>
+
+      <div class="input-card">
+        <div class="input-toggle">
+          <div class="toggle-switch">
+            <button class="toggle-option active" id="urlToggle">URL</button>
+            <button class="toggle-option" id="textToggle">Article Text</button>
+          </div>
         </div>
-        
-        <div class="input-card">
-            <div class="input-toggle">
-                <div class="toggle-switch">
-                    <button class="toggle-option active" id="urlToggle">URL</button>
-                    <button class="toggle-option" id="textToggle">Article Text</button>
-                </div>
-            </div>
-            
-            <div class="input-group" id="inputGroup">
-                <input type="url" id="urlInput" placeholder="Enter news article URL..." />
-                <textarea id="textInput" placeholder="Paste your article text here..." style="display: none;"></textarea>
-                <button id="extractBtn">Extract Locations</button>
-            </div>
+
+        <div class="input-group" id="inputGroup">
+          <input
+            type="url"
+            id="urlInput"
+            placeholder="Enter news article URL..."
+          />
+          <textarea
+            id="textInput"
+            placeholder="Paste your article text here..."
+            style="display: none"
+          ></textarea>
+          <button id="extractBtn">Extract Locations</button>
         </div>
-        
-        <div id="statusCard" class="status-card">
-            <div id="loadingSection" class="loading-state" style="display: none;">
-                <div class="loading-spinner"></div>
-                <p>Extracting locations and generating summaries...</p>
-            </div>
-            
-            <div id="errorSection" class="error-state" style="display: none;"></div>
-            
-            <div id="resultsSection" class="results-container" style="display: none;">
-                <div class="article-summary">
-                    <div id="articleTitle" class="article-title"></div>
-                    <div class="article-stats">
-                        <div class="stat-item">
-                            <svg class="stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            <span id="locationsCount" class="locations-count"></span>
-                        </div>
-                        <div class="stat-item">
-                            <svg class="stat-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span id="processingTime"></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="map-container">
-                    <div id="map"></div>
-                </div>
-            </div>
+      </div>
+
+      <div id="statusCard" class="status-card">
+        <div id="loadingSection" class="loading-state" style="display: none">
+          <div class="loading-spinner"></div>
+          <p>Extracting locations and generating summaries...</p>
         </div>
+
+        <div id="errorSection" class="error-state" style="display: none"></div>
+
+        <div
+          id="resultsSection"
+          class="results-container"
+          style="display: none"
+        >
+          <div class="article-summary">
+            <div id="articleTitle" class="article-title"></div>
+            <div class="article-stats">
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                <span id="locationsCount" class="locations-count"></span>
+              </div>
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span id="processingTime"></span>
+              </div>
+            </div>
+          </div>
+          <div class="map-container">
+            <div id="map"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
     <!-- Application JavaScript modules -->
     <script src="/static/js/map.js"></script>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/ui.js"></script>
+    <script src="/static/js/realtime.js"></script>
     <script src="/static/js/app.js"></script>
-</body>
+  </body>
 </html>

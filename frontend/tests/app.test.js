@@ -6,7 +6,7 @@ global.WaldoApp = class WaldoApp {
     this.mapManager = new window.MapManager();
     this.apiClient = new window.ApiClient();
     this.uiManager = new window.UIManager();
-    
+
     this.initEventListeners();
   }
 
@@ -14,23 +14,23 @@ global.WaldoApp = class WaldoApp {
     document.getElementById('extractBtn').addEventListener('click', () => {
       this.extractLocations();
     });
-    
+
     document.getElementById('urlInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         this.extractLocations();
       }
     });
-    
+
     document.getElementById('textInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && e.ctrlKey) {
         this.extractLocations();
       }
     });
-    
+
     document.getElementById('urlToggle').addEventListener('click', () => {
       this.uiManager.toggleInputMode('url');
     });
-    
+
     document.getElementById('textToggle').addEventListener('click', () => {
       this.uiManager.toggleInputMode('text');
     });
@@ -43,19 +43,18 @@ global.WaldoApp = class WaldoApp {
 
     this.uiManager.setButtonLoading(true);
     this.uiManager.showLoading();
-    
+
     try {
       const input = this.uiManager.getCurrentInput();
       const data = await this.apiClient.extractLocations(input);
-      
+
       this.uiManager.updateResults(data);
       this.uiManager.showResults();
-      
+
       setTimeout(() => {
         this.mapManager.init();
         this.mapManager.addMarkers(data.locations);
       }, 100);
-      
     } catch (error) {
       console.error('Error:', error);
       this.uiManager.showError(error.message);
@@ -63,7 +62,7 @@ global.WaldoApp = class WaldoApp {
       this.uiManager.setButtonLoading(false);
     }
   }
-}
+};
 
 window.WaldoApp = global.WaldoApp;
 
@@ -94,11 +93,11 @@ describe('WaldoApp', () => {
     // Mock the classes
     mockMapManager = {
       init: jest.fn(),
-      addMarkers: jest.fn()
+      addMarkers: jest.fn(),
     };
 
     mockApiClient = {
-      extractLocations: jest.fn()
+      extractLocations: jest.fn(),
     };
 
     mockUIManager = {
@@ -109,7 +108,7 @@ describe('WaldoApp', () => {
       updateResults: jest.fn(),
       showResults: jest.fn(),
       showError: jest.fn(),
-      toggleInputMode: jest.fn()
+      toggleInputMode: jest.fn(),
     };
 
     // Mock the global classes
@@ -161,9 +160,9 @@ describe('WaldoApp', () => {
     test('should handle successful extraction', async () => {
       const mockData = {
         locations: [
-          { name: 'New York', latitude: 40.7128, longitude: -74.0060 }
+          { name: 'New York', latitude: 40.7128, longitude: -74.006 },
         ],
-        processing_time: 2.1
+        processing_time: 2.1,
       };
 
       mockUIManager.validateInput.mockReturnValue(true);
@@ -184,8 +183,8 @@ describe('WaldoApp', () => {
     test('should initialize map after showing results', async () => {
       const mockData = {
         locations: [
-          { name: 'New York', latitude: 40.7128, longitude: -74.0060 }
-        ]
+          { name: 'New York', latitude: 40.7128, longitude: -74.006 },
+        ],
       };
 
       mockUIManager.validateInput.mockReturnValue(true);
@@ -195,15 +194,17 @@ describe('WaldoApp', () => {
       await waldoApp.extractLocations();
 
       // Wait for the setTimeout to execute
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       expect(mockMapManager.init).toHaveBeenCalled();
-      expect(mockMapManager.addMarkers).toHaveBeenCalledWith(mockData.locations);
+      expect(mockMapManager.addMarkers).toHaveBeenCalledWith(
+        mockData.locations
+      );
     });
 
     test('should handle API errors', async () => {
       const error = new Error('API Error');
-      
+
       mockUIManager.validateInput.mockReturnValue(true);
       mockUIManager.getCurrentInput.mockReturnValue('test input');
       mockApiClient.extractLocations.mockRejectedValue(error);
@@ -215,8 +216,10 @@ describe('WaldoApp', () => {
     });
 
     test('should handle rate limit errors', async () => {
-      const error = new Error('⏰ API rate limit exceeded. Please try again in 60 seconds.');
-      
+      const error = new Error(
+        '⏰ API rate limit exceeded. Please try again in 60 seconds.'
+      );
+
       mockUIManager.validateInput.mockReturnValue(true);
       mockUIManager.getCurrentInput.mockReturnValue('test input');
       mockApiClient.extractLocations.mockRejectedValue(error);
@@ -244,26 +247,26 @@ describe('WaldoApp', () => {
   describe('event handlers', () => {
     test('should call toggleInputMode when URL toggle is clicked', () => {
       const urlToggle = document.getElementById('urlToggle');
-      
+
       urlToggle.click();
-      
+
       expect(mockUIManager.toggleInputMode).toHaveBeenCalledWith('url');
     });
 
     test('should call toggleInputMode when text toggle is clicked', () => {
       const textToggle = document.getElementById('textToggle');
-      
+
       textToggle.click();
-      
+
       expect(mockUIManager.toggleInputMode).toHaveBeenCalledWith('text');
     });
 
     test('should call extractLocations when extract button is clicked', () => {
       const extractBtn = document.getElementById('extractBtn');
       mockUIManager.validateInput.mockReturnValue(false); // To prevent actual execution
-      
+
       extractBtn.click();
-      
+
       // Validation should be called (indicating extractLocations was called)
       expect(mockUIManager.validateInput).toHaveBeenCalled();
     });
@@ -271,32 +274,32 @@ describe('WaldoApp', () => {
     test('should call extractLocations on Enter key in URL input', () => {
       const urlInput = document.getElementById('urlInput');
       mockUIManager.validateInput.mockReturnValue(false); // To prevent actual execution
-      
+
       const enterEvent = new KeyboardEvent('keypress', { key: 'Enter' });
       urlInput.dispatchEvent(enterEvent);
-      
+
       expect(mockUIManager.validateInput).toHaveBeenCalled();
     });
 
     test('should call extractLocations on Ctrl+Enter in text input', () => {
       const textInput = document.getElementById('textInput');
       mockUIManager.validateInput.mockReturnValue(false); // To prevent actual execution
-      
-      const ctrlEnterEvent = new KeyboardEvent('keypress', { 
-        key: 'Enter', 
-        ctrlKey: true 
+
+      const ctrlEnterEvent = new KeyboardEvent('keypress', {
+        key: 'Enter',
+        ctrlKey: true,
       });
       textInput.dispatchEvent(ctrlEnterEvent);
-      
+
       expect(mockUIManager.validateInput).toHaveBeenCalled();
     });
 
     test('should not call extractLocations on Enter without Ctrl in text input', () => {
       const textInput = document.getElementById('textInput');
-      
+
       const enterEvent = new KeyboardEvent('keypress', { key: 'Enter' });
       textInput.dispatchEvent(enterEvent);
-      
+
       expect(mockUIManager.validateInput).not.toHaveBeenCalled();
     });
   });

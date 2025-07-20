@@ -13,7 +13,7 @@ This directory contains the frontend assets for the Waldo application.
 - `css/app.css` - Main application styles
 - `js/map.js` - Map management functionality
 - `js/api.js` - API communication
-- `js/ui.js` - UI state management  
+- `js/ui.js` - UI state management
 - `js/app.js` - Main application logic
 - `templates/map.html` - Main application template
 
