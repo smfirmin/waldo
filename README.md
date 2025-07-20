@@ -1,14 +1,20 @@
-# Waldo - News Article Geocoding & Mapping API
+# Waldo - News Article Location Mapper
 
-A Flask API that extracts locations from news articles and visualizes them on an interactive map with AI-generated event summaries.
+A web application that extracts locations from news articles and visualizes them on an interactive map with AI-generated event summaries.
+
+## 🚀 Live Demo
+
+Try it out: **[https://waldo-production-d5b9.up.railway.app/](https://waldo-production-d5b9.up.railway.app/)**
 
 ## Features
 
-- Extract article content from URLs
-- AI-powered location extraction using Google Gemini
-- Geocoding locations to coordinates
-- Interactive map visualization with Leaflet.js
-- Event summaries for each location marker
+- **Dual Input Support**: Extract from URLs or paste article text directly
+- **AI-Powered Location Extraction**: Uses Google Gemini 2.0 Flash for intelligent location identification
+- **Smart Geocoding**: Converts location names to coordinates with boundary detection
+- **Spatial Filtering**: Removes duplicate and hierarchically contained locations
+- **Interactive Map**: Modern dark-themed map with custom markers and popups
+- **Event Summaries**: AI-generated context for what happened at each location
+- **Responsive Design**: Works on desktop and mobile devices
 
 ## Development Setup
 
@@ -27,18 +33,25 @@ A Flask API that extracts locations from news articles and visualizes them on an
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+3. **Install backend dependencies**
    ```bash
    pip install -r requirements-dev.txt
    ```
 
-4. **Set up environment variables**
+4. **Install frontend dependencies**
+   ```bash
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+5. **Set up environment variables**
    ```bash
    cp .env.example .env
    # Edit .env and add your GEMINI_API_KEY
    ```
 
-5. **Run the development server**
+6. **Run the development server**
    ```bash
    python run.py
    ```
@@ -47,11 +60,17 @@ A Flask API that extracts locations from news articles and visualizes them on an
 ### Testing
 
 ```bash
-# Run tests
+# Run backend tests
 pytest
 
-# Run tests with coverage
+# Run backend tests with coverage
 pytest --cov=app
+
+# Run frontend tests
+cd frontend && npm test
+
+# Run all tests (backend + frontend)
+./test-all.sh
 
 # Run linting
 ruff check .
@@ -71,21 +90,43 @@ docker run -p 8000:8000 -e GEMINI_API_KEY=your_api_key_here waldo
 
 ## API Endpoints
 
-- `POST /api/extract` - Extract locations from article URL
-- `GET /map/<extraction_id>` - View interactive map
-- `GET /health` - Health check
+- `GET /` - Serve the frontend application
+- `POST /api/extract` - Extract locations from article URL or text
+- `GET /api/health` - Health check endpoint
 
 ## Project Structure
 
 ```
 waldo/
 ├── app/
-│   ├── services/          # Core business logic
-│   ├── models/           # Data models
-│   └── templates/        # HTML templates
-├── tests/               # Unit tests
-├── requirements.txt     # Production dependencies
-├── requirements-dev.txt # Development dependencies
-├── Dockerfile          # Container configuration
-└── README.md           # This file
+│   ├── api/              # API routes and blueprints
+│   ├── services/         # Core business logic (AI, geocoding, processing)
+│   ├── models/           # Pydantic data models
+│   └── utils/            # Helper utilities
+├── frontend/
+│   ├── js/               # JavaScript modules (map, API, UI)
+│   ├── css/              # Stylesheets
+│   ├── templates/        # HTML templates
+│   └── tests/            # Frontend Jest tests
+├── tests/                # Backend pytest tests
+├── prompts/              # AI prompt templates
+├── requirements.txt      # Production dependencies
+├── requirements-dev.txt  # Development dependencies
+├── docs/                # Documentation
+├── Dockerfile           # Container configuration
+└── railway.toml         # Railway deployment config
 ```
+
+## Deployment
+
+This application is configured for easy deployment on Railway. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed setup instructions.
+
+**Quick Deploy**: Connect your GitHub repo to Railway - it will auto-detect the configuration and deploy!
+
+## Documentation
+
+- 📚 [Deployment Guide](docs/DEPLOYMENT.md) - Railway deployment instructions
+- 🧪 [Testing Guide](docs/TESTING.md) - Test setup and execution
+- 🎨 [UI Improvements](docs/UI_IMPROVEMENTS.md) - Frontend enhancement ideas
+- 📋 [Requirements](docs/REQUIREMENTS.md) - Technical specifications
+- 📝 [TODO](docs/TODO.md) - Planned improvements and roadmap
