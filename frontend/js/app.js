@@ -65,7 +65,7 @@ class WaldoApp {
 
     this.uiManager.setButtonLoading(true);
     this.uiManager.hideResults(); // Hide previous results
-    this.progressUI.show(); // Show progress UI
+    // this.progressUI.show(); // Show progress UI
 
     try {
       const input = this.uiManager.getCurrentInput();
@@ -100,7 +100,7 @@ class WaldoApp {
       }, 100);
     } catch (error) {
       console.error('Error:', error);
-      this.progressUI.showError(error.message);
+      // this.progressUI.showError(error.message);
       this.uiManager.showError(error.message);
     } finally {
       this.uiManager.setButtonLoading(false);
