@@ -22,19 +22,61 @@ class MapManager {
       attributionControl: true,
     });
 
-    // Add modern CartoDB Positron basemap
-    const tileLayer = L.tileLayer(
+    // Add tile layer with fallback support
+    const tileUrls = [
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    ];
+
+    const tileOptions = [
       {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19,
         minZoom: 1,
-      }
-    );
+      },
+      {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        subdomains: 'abc',
+        maxZoom: 19,
+        minZoom: 1,
+      },
+    ];
 
-    tileLayer.addTo(this.map);
+    let tileLayer;
+    let currentTileIndex = 0;
+
+    const tryTileLayer = (index) => {
+      if (index >= tileUrls.length) {
+        console.error('All tile servers failed');
+        return;
+      }
+
+      console.log(
+        `Trying tile server ${index + 1}/${tileUrls.length}: ${tileUrls[index]}`
+      );
+
+      tileLayer = L.tileLayer(tileUrls[index], tileOptions[index]);
+
+      tileLayer.on('tileerror', (e) => {
+        console.error(`Tile loading error from server ${index + 1}:`, e);
+        if (index + 1 < tileUrls.length) {
+          console.log('Switching to fallback tile server...');
+          this.map.removeLayer(tileLayer);
+          tryTileLayer(index + 1);
+        }
+      });
+
+      tileLayer.on('tileload', () => {
+        console.log(`Tiles loading successfully from server ${index + 1}`);
+      });
+
+      tileLayer.addTo(this.map);
+    };
+
+    tryTileLayer(0);
 
     // Force map to refresh after a brief delay
     setTimeout(() => {

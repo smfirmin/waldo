@@ -41,7 +41,7 @@ class GeocodingService:
             # Request detailed data from Nominatim
             location = self.geocoder.geocode(
                 location_name,
-                timeout=10,
+                timeout=30,
                 exactly_one=True,
                 addressdetails=True,
                 extratags=True,

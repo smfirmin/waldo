@@ -11,6 +11,8 @@ global.L = {
   })),
   tileLayer: jest.fn(() => ({
     addTo: jest.fn(),
+    on: jest.fn(),
+    removeLayer: jest.fn(),
   })),
   marker: jest.fn(() => ({
     bindPopup: jest.fn().mockReturnThis(),
