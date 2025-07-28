@@ -29,16 +29,6 @@ class GeocodingService:
     def __init__(self):
         self.geocoder = Nominatim(user_agent="waldo")
 
-    def geocode_location(self, location_name: str) -> Optional[Tuple[float, float]]:
-        """
-        Convert location name to latitude, longitude coordinates.
-        Returns: (latitude, longitude) or None if not found
-        """
-        geo_data = self.geocode_with_boundaries(location_name)
-        if geo_data:
-            return (geo_data.latitude, geo_data.longitude)
-        return None
-
     def geocode_with_boundaries(self, location_name: str) -> Optional[GeographicData]:
         """
         Convert location name to detailed geographic data including boundaries.

@@ -78,8 +78,8 @@ class LocationExtractor:
         except Exception as e:
             logger.error(f"Error getting model info: {e}")
 
-        # Safe default for Gemini 2.5 Flash (as of 2024)
-        return 1000000  # 1M tokens
+        # Safe default for Gemini 2.0 Flash (as of 2024)
+        return 100000  # 1M tokens
 
     def _calculate_safe_text_limit(self, prompt_size: int) -> int:
         """

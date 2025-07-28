@@ -80,6 +80,15 @@ class LocationProcessor:
                 article_text, extracted_loc.standardized_name
             )
 
+            # Check if summarizer is hitting rate limits
+            if (
+                "rate limit" in summary.lower()
+                or "temporarily unavailable" in summary.lower()
+            ):
+                raise Exception(
+                    "⏰ API rate limit exceeded during summarization. Please try again in a few moments.\n\nTip: The Gemini API has usage limits for generating summaries."
+                )
+
             # Calculate confidence score
             confidence = 0.8  # Base confidence
             if extracted_loc.confidence == "high":
