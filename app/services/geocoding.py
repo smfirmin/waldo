@@ -75,8 +75,7 @@ class GeocodingService:
                     place_type = raw_data.get("type", raw_data["class"])
 
                 # Extract admin level from extratags
-                if (raw_data.get("extratags") and 
-                    "admin_level" in raw_data["extratags"]):
+                if raw_data.get("extratags") and "admin_level" in raw_data["extratags"]:
                     try:
                         admin_level = int(raw_data["extratags"]["admin_level"])
                     except (ValueError, TypeError):
