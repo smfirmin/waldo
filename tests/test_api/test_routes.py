@@ -105,10 +105,11 @@ class TestExtractEndpoint:
             "/api/extract", json={"input": "https://example.com/article"}
         )
 
-        assert response.status_code == 422
+        # New async API returns 200 with session_id immediately
+        assert response.status_code == 200
         data = json.loads(response.data)
-        assert data["error_code"] == "URL_EXTRACTION_FAILED"
-        assert "Network error" in data["details"]
+        assert "session_id" in data
+        assert data["status"] == "processing"
 
     @patch("app.api.routes.article_extractor")
     def test_extract_url_no_content(self, mock_extractor, client):
@@ -119,10 +120,11 @@ class TestExtractEndpoint:
             "/api/extract", json={"input": "https://example.com/article"}
         )
 
-        assert response.status_code == 422
+        # New async API returns 200 with session_id immediately
+        assert response.status_code == 200
         data = json.loads(response.data)
-        assert data["error_code"] == "NO_CONTENT"
-        assert "No readable content" in data["message"]
+        assert "session_id" in data
+        assert data["status"] == "processing"
 
     @patch("app.api.routes.get_ai_services")
     def test_extract_rate_limit_error(self, mock_ai_services, client):
@@ -138,11 +140,11 @@ class TestExtractEndpoint:
             json={"input": "This is a test article about Paris, France."},
         )
 
-        assert response.status_code == 429
+        # New async API returns 200 with session_id immediately
+        assert response.status_code == 200
         data = json.loads(response.data)
-        assert data["error_code"] == "RATE_LIMIT_EXCEEDED"
-        assert "rate limit" in data["message"].lower()
-        assert data["retry_after"] == 60
+        assert "session_id" in data
+        assert data["status"] == "processing"
 
     def test_input_validation_edge_cases(self, client):
         """Test Pydantic validation with various edge cases"""
@@ -204,27 +206,16 @@ class TestExtractEndpoint:
         if response.status_code == 200:
             data = json.loads(response.data)
 
-            # Verify complete response structure
-            required_fields = [
-                "article_text",
-                "locations",
-                "processing_time",
-                "request_id",
-                "session_id",
-            ]
+            # New async API returns session_id and processing status
+            required_fields = ["session_id", "status", "message"]
             for field in required_fields:
                 assert field in data
 
-            assert isinstance(data["locations"], list)
-            assert isinstance(data["processing_time"], (int, float))
+            assert data["status"] == "processing"
+            assert "session_id" in data
 
-            # Verify location structure if any found
-            for location in data["locations"]:
-                assert "name" in location
-                assert "latitude" in location
-                assert "longitude" in location
-                assert isinstance(location["latitude"], (int, float))
-                assert isinstance(location["longitude"], (int, float))
+            # In the new async API, results would need to be fetched from /api/results/<session_id>
+            # after processing completes via SSE events
 
 
 if __name__ == "__main__":

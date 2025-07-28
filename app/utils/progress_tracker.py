@@ -93,6 +93,8 @@ class ProgressTracker:
             ProgressStatus.EXTRACTING_LOCATIONS,
             f"Finding locations in {article_length:,} character article...",
             progress_percent=25.0,
+            current_index=0,
+            total_items=None,
         )
 
     def locations_found(self, location_count: int):
@@ -102,6 +104,7 @@ class ProgressTracker:
             f"Found {location_count} potential locations",
             progress_percent=40.0,
             total_items=location_count,
+            current_index=0,
         )
 
     def start_processing_locations(self, total_locations: int):
@@ -111,6 +114,7 @@ class ProgressTracker:
             f"Processing {total_locations} locations (geocoding + generating summaries)...",
             progress_percent=50.0,
             total_items=total_locations,
+            current_index=0,
         )
 
     def start_filtering(self):

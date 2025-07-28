@@ -52,7 +52,13 @@ class RealtimeClient {
     this.eventSource.onerror = (error) => {
       console.error('Progress stream error:', error);
       this.isConnected = false;
-      this.triggerCallback('error', { error: 'Connection lost' });
+
+      // Only trigger error if we haven't completed successfully
+      if (this.eventSource.readyState === EventSource.CLOSED) {
+        console.log('SSE connection closed normally');
+      } else {
+        this.triggerCallback('error', { error: 'Connection lost' });
+      }
     };
   }
 
@@ -180,9 +186,7 @@ class ProgressUI {
         details = `Current: ${current_item}`;
       }
 
-      if (current_index !== undefined && total_items !== undefined) {
-        details += ` (${current_index + 1}/${total_items})`;
-      }
+      // Progress counter removed - showing only current item if available
 
       this.detailsText.textContent = details;
     }

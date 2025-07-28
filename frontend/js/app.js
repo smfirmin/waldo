@@ -48,12 +48,45 @@ class WaldoApp {
       this.progressUI.updateProgress(data);
     });
 
-    this.realtimeClient.on('complete', (data) => {
+    this.realtimeClient.on('complete', async (data) => {
       this.progressUI.showComplete(data);
+
+      // Fetch final results when processing completes
+      try {
+        console.log('Fetching results for session:', data.session_id);
+        const resultsResponse = await fetch(`/api/results/${data.session_id}`);
+
+        if (resultsResponse.ok) {
+          const results = await resultsResponse.json();
+          console.log('Results received:', results);
+
+          // Update UI with final results
+          this.uiManager.updateResults(results);
+          this.uiManager.showResults();
+
+          // Initialize map after DOM is visible
+          setTimeout(() => {
+            this.mapManager.init();
+            this.mapManager.addMarkers(results.locations);
+          }, 100);
+        } else {
+          const errorData = await resultsResponse.json();
+          console.error('Results fetch failed:', errorData);
+          this.uiManager.showError(
+            `Failed to get results: ${errorData.error || 'Unknown error'}`
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching results:', error);
+        this.uiManager.showError('Failed to fetch results: ' + error.message);
+      } finally {
+        this.uiManager.setButtonLoading(false);
+      }
     });
 
     this.realtimeClient.on('error', (data) => {
       this.progressUI.showError(data.error || data.message || 'Unknown error');
+      this.uiManager.setButtonLoading(false);
     });
   }
 
@@ -65,44 +98,27 @@ class WaldoApp {
 
     this.uiManager.setButtonLoading(true);
     this.uiManager.hideResults(); // Hide previous results
-    // this.progressUI.show(); // Show progress UI
+    this.progressUI.show(); // Show progress UI
 
     try {
       const input = this.uiManager.getCurrentInput();
 
-      // Start the API call and get immediate response with session_id
-      const apiPromise = this.apiClient.extractLocations(input);
+      // Start the API call and get session_id immediately
+      const startResponse = await this.apiClient.extractLocations(input);
 
-      // Wait a moment for the API to start processing, then connect to SSE
-      // The API response should include the session_id we need
-      apiPromise
-        .then((data) => {
-          if (data.session_id) {
-            // Connect to real-time progress updates
-            this.realtimeClient.connect(data.session_id);
-          }
-        })
-        .catch(() => {
-          // Ignore errors here, they'll be handled below
-        });
+      if (startResponse.session_id) {
+        // Connect to real-time progress updates immediately
+        this.realtimeClient.connect(startResponse.session_id);
 
-      // Wait for the full API response
-      const data = await apiPromise;
-
-      // Update UI with final results
-      this.uiManager.updateResults(data);
-      this.uiManager.showResults();
-
-      // Initialize map after DOM is visible
-      setTimeout(() => {
-        this.mapManager.init();
-        this.mapManager.addMarkers(data.locations);
-      }, 100);
+        // Wait for processing to complete via SSE events
+        // Results will be handled in the realtime callbacks
+      } else {
+        throw new Error('No session ID received from server');
+      }
     } catch (error) {
       console.error('Error:', error);
-      // this.progressUI.showError(error.message);
+      this.progressUI.showError(error.message);
       this.uiManager.showError(error.message);
-    } finally {
       this.uiManager.setButtonLoading(false);
     }
   }

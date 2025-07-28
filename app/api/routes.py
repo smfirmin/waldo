@@ -4,6 +4,7 @@ import time
 import uuid
 import logging
 import json
+import threading
 
 from app.models.data_models import (
     ArticleRequest,
@@ -84,8 +85,10 @@ def progress_stream(session_id: str):
                     event = event_queue.pop(0)
                     yield progress_tracker.get_sse_data(event)
 
-                    # If complete or error, break the stream
+                    # If complete or error, break the stream after a delay
                     if event.status.value in ["complete", "error"]:
+                        # Give frontend time to fetch results before breaking
+                        time.sleep(1)
                         break
                 else:
                     # Keep connection alive with heartbeat
@@ -97,8 +100,15 @@ def progress_stream(session_id: str):
                     time.sleep(0.5)
 
         finally:
-            # Clean up when connection closes
-            cleanup_progress_tracker(session_id)
+            # Delay cleanup to allow results retrieval
+            def delayed_cleanup():
+                time.sleep(10)  # Wait 10 seconds before cleanup
+                cleanup_progress_tracker(session_id)
+
+            import threading
+
+            cleanup_thread = threading.Thread(target=delayed_cleanup, daemon=True)
+            cleanup_thread.start()
 
     return Response(
         event_stream(),
@@ -112,40 +122,13 @@ def progress_stream(session_id: str):
     )
 
 
-@bp.route("/extract", methods=["POST"])
-def extract_locations():
-    """Extract locations from article URL or text and return with coordinates"""
-    request_id = str(uuid.uuid4())
+def _process_locations_async(request_id: str, article_request: ArticleRequest):
+    """Process locations in background thread"""
     start_time = time.time()
-
-    logger.info(f"Processing request {request_id}")
-
-    # Initialize progress tracker
     progress_tracker = get_progress_tracker(request_id)
-    progress_tracker.start_processing()
 
     try:
-        # Validate request data
-        data = request.get_json()
-        if not data:
-            logger.warning(f"Request {request_id}: No JSON data provided")
-            progress_tracker.error("No data provided in request body")
-            return create_error_response(
-                "MISSING_DATA", "No data provided in request body"
-            )
-
-        # Check for required fields
-        if "input" not in data:
-            logger.warning(f"Request {request_id}: Missing 'input' field")
-            progress_tracker.error("Required field 'input' is missing")
-            return create_error_response(
-                "MISSING_INPUT", "Required field 'input' is missing"
-            )
-
-        article_request = ArticleRequest(**data)
-        logger.info(
-            f"Request {request_id}: Input type={'URL' if article_request.is_url() else 'text'}, length={len(article_request.input)}"
-        )
+        progress_tracker.start_processing()
 
         # Create response object with tracking
         response = ArticleResponse(
@@ -168,21 +151,12 @@ def extract_locations():
             except Exception as e:
                 logger.error(f"Request {request_id}: URL extraction failed: {str(e)}")
                 progress_tracker.error(f"Failed to extract content from URL: {str(e)}")
-                return create_error_response(
-                    "URL_EXTRACTION_FAILED",
-                    "Failed to extract content from URL",
-                    details=str(e),
-                    status_code=422,
-                )
+                return
 
             if not article_text or not article_text.strip():
                 logger.warning(f"Request {request_id}: No content found at URL")
                 progress_tracker.error("No readable content found at the provided URL")
-                return create_error_response(
-                    "NO_CONTENT",
-                    "No readable content found at the provided URL",
-                    status_code=422,
-                )
+                return
         else:
             # Use provided text directly
             title = "Article Text"  # Default title for text input
@@ -212,30 +186,17 @@ def extract_locations():
             logger.info(
                 f"Request {request_id}: Extracted {len(extracted_locations)} locations"
             )
-        except RateLimitError as e:
+        except RateLimitError:
             logger.warning(f"Request {request_id}: Rate limit exceeded")
             progress_tracker.error(
                 "API rate limit exceeded. Please try again in a few moments."
             )
-            return create_error_response(
-                "RATE_LIMIT_EXCEEDED",
-                "API rate limit exceeded. Please try again in a few moments.",
-                details=str(e),
-                status_code=429,
-                retry_after=60,  # Suggest retry after 60 seconds
-            )
+            return
 
         if not extracted_locations:
             processing_time = time.time() - start_time
             progress_tracker.complete(0, processing_time)
-            response = ArticleResponse(
-                article_title=title,
-                article_text=article_text,
-                locations=[],
-                processing_time=processing_time,
-                request_id=request_id,
-            )
-            return jsonify(response.model_dump())
+            return
 
         # Process locations through geocoding and summarization pipeline
         progress_tracker.start_processing_locations(len(extracted_locations))
@@ -252,14 +213,62 @@ def extract_locations():
         processing_time = time.time() - start_time
         progress_tracker.complete(len(locations), processing_time)
 
-        # Update the existing response object (which may have warnings) instead of creating new one
+        # Store final results in progress tracker for retrieval
         response.locations = locations
         response.processing_time = processing_time
+        progress_tracker.final_response = response
 
-        # Add session_id to response for frontend to connect to SSE
-        response_data = response.model_dump()
-        response_data["session_id"] = request_id
-        return jsonify(response_data)
+    except Exception as e:
+        logger.error(f"Request {request_id}: Processing failed: {str(e)}")
+        progress_tracker.error(f"Processing failed: {str(e)}")
+
+
+@bp.route("/extract", methods=["POST"])
+def extract_locations():
+    """Start location extraction and return session ID for progress tracking"""
+    request_id = str(uuid.uuid4())
+    logger.info(f"Starting request {request_id}")
+
+    try:
+        # Validate request data
+        data = request.get_json()
+        if not data:
+            logger.warning(f"Request {request_id}: No JSON data provided")
+            return create_error_response(
+                "MISSING_DATA", "No data provided in request body"
+            )
+
+        # Check for required fields
+        if "input" not in data:
+            logger.warning(f"Request {request_id}: Missing 'input' field")
+            return create_error_response(
+                "MISSING_INPUT", "Required field 'input' is missing"
+            )
+
+        article_request = ArticleRequest(**data)
+        logger.info(
+            f"Request {request_id}: Input type={'URL' if article_request.is_url() else 'text'}, length={len(article_request.input)}"
+        )
+
+        # Initialize progress tracker
+        get_progress_tracker(request_id)
+
+        # Start processing in background thread
+        thread = threading.Thread(
+            target=_process_locations_async,
+            args=(request_id, article_request),
+            daemon=True,
+        )
+        thread.start()
+
+        # Return session ID immediately for SSE connection
+        return jsonify(
+            {
+                "session_id": request_id,
+                "status": "processing",
+                "message": "Processing started. Connect to SSE for progress updates.",
+            }
+        )
 
     except ValidationError as e:
         return jsonify({"error": "Invalid request data", "details": str(e)}), 400
@@ -267,3 +276,28 @@ def extract_locations():
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+@bp.route("/results/<session_id>", methods=["GET"])
+def get_results(session_id: str):
+    """Get final results for a completed session"""
+    try:
+        progress_tracker = get_progress_tracker(session_id)
+
+        if not hasattr(progress_tracker, "final_response"):
+            return jsonify(
+                {"error": "Results not available yet", "session_id": session_id}
+            ), 404
+
+        if progress_tracker.final_response is None:
+            return jsonify(
+                {"error": "Processing failed or incomplete", "session_id": session_id}
+            ), 404
+
+        response_data = progress_tracker.final_response.model_dump()
+        response_data["session_id"] = session_id
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Error retrieving results for session {session_id}: {str(e)}")
+        return jsonify({"error": "Failed to retrieve results", "details": str(e)}), 500

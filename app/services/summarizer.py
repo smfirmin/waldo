@@ -1,5 +1,6 @@
 import google.generativeai as genai
 import os
+import logging
 
 
 class EventSummarizer:
@@ -7,6 +8,7 @@ class EventSummarizer:
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel("gemini-2.5-flash")
         self.prompt_template = self._load_prompt_template()
+        self.logger = logging.getLogger(__name__)
 
     def _load_prompt_template(self) -> str:
         """Load the event summarization prompt from file."""
@@ -44,8 +46,10 @@ class EventSummarizer:
         except Exception as e:
             error_str = str(e).lower()
             if "429" in error_str or "rate limit" in error_str or "quota" in error_str:
-                print(f"Rate limit exceeded in summarizer for {location_name}: {e}")
+                self.logger.warning(
+                    f"Rate limit exceeded in summarizer for {location_name}: {e}"
+                )
                 return "Summary temporarily unavailable due to rate limits"
             else:
-                print(f"Error generating summary for {location_name}: {e}")
+                self.logger.debug(f"Error generating summary for {location_name}: {e}")
                 return "Mentioned in article."
