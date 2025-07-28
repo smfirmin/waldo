@@ -67,7 +67,7 @@ class GeocodingService:
             place_type = None
             containing_areas = {}
 
-            if hasattr(location, "raw"):
+            if hasattr(location, "raw") and location.raw:
                 raw_data = location.raw
 
                 # Get place type from class/type
@@ -75,14 +75,15 @@ class GeocodingService:
                     place_type = raw_data.get("type", raw_data["class"])
 
                 # Extract admin level from extratags
-                if "extratags" in raw_data and "admin_level" in raw_data["extratags"]:
+                if (raw_data.get("extratags") and 
+                    "admin_level" in raw_data["extratags"]):
                     try:
                         admin_level = int(raw_data["extratags"]["admin_level"])
                     except (ValueError, TypeError):
                         pass
 
                 # Extract containing administrative areas from address
-                if "address" in raw_data:
+                if raw_data.get("address"):
                     address = raw_data["address"]
                     containing_areas = {
                         "country": address.get("country"),
