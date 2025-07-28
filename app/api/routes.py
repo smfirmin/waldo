@@ -225,7 +225,7 @@ def _process_locations_async(request_id: str, article_request: ArticleRequest):
 
 @bp.route("/extract", methods=["POST"])
 def extract_locations():
-    """Start location extraction and return session ID for progress tracking"""
+    """Extract locations - supports both direct response and SSE modes"""
     request_id = str(uuid.uuid4())
     logger.info(f"Starting request {request_id}")
 
@@ -250,25 +250,32 @@ def extract_locations():
             f"Request {request_id}: Input type={'URL' if article_request.is_url() else 'text'}, length={len(article_request.input)}"
         )
 
-        # Initialize progress tracker
-        get_progress_tracker(request_id)
+        # Check if client wants direct response (for backwards compatibility)
+        use_sse = request.args.get("sse", "false").lower() == "true"
 
-        # Start processing in background thread
-        thread = threading.Thread(
-            target=_process_locations_async,
-            args=(request_id, article_request),
-            daemon=True,
-        )
-        thread.start()
+        if use_sse:
+            # Initialize progress tracker for SSE mode
+            get_progress_tracker(request_id)
 
-        # Return session ID immediately for SSE connection
-        return jsonify(
-            {
-                "session_id": request_id,
-                "status": "processing",
-                "message": "Processing started. Connect to SSE for progress updates.",
-            }
-        )
+            # Start processing in background thread
+            thread = threading.Thread(
+                target=_process_locations_async,
+                args=(request_id, article_request),
+                daemon=True,
+            )
+            thread.start()
+
+            # Return session ID immediately for SSE connection
+            return jsonify(
+                {
+                    "session_id": request_id,
+                    "status": "processing",
+                    "message": "Processing started. Connect to SSE for progress updates.",
+                }
+            )
+        else:
+            # Direct processing mode - process synchronously and return results
+            return _process_locations_direct(request_id, article_request)
 
     except ValidationError as e:
         return jsonify({"error": "Invalid request data", "details": str(e)}), 400
@@ -276,6 +283,96 @@ def extract_locations():
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+def _process_locations_direct(request_id: str, article_request: ArticleRequest):
+    """Process locations directly and return results immediately"""
+    start_time = time.time()
+
+    try:
+        # Create response object
+        response = ArticleResponse(
+            article_title="",
+            article_text="",
+            locations=[],
+            processing_time=0.0,
+            request_id=request_id,
+        )
+
+        # Handle URL or text input
+        if article_request.is_url():
+            try:
+                logger.info(f"Request {request_id}: Extracting content from URL")
+                title, article_text = article_extractor.extract_from_url(
+                    article_request.get_url()
+                )
+            except Exception as e:
+                logger.error(f"Request {request_id}: URL extraction failed: {str(e)}")
+                return jsonify(
+                    {"error": f"Failed to extract content from URL: {str(e)}"}
+                ), 400
+
+            if not article_text or not article_text.strip():
+                logger.warning(f"Request {request_id}: No content found at URL")
+                return jsonify(
+                    {"error": "No readable content found at the provided URL"}
+                ), 400
+        else:
+            # Use provided text directly
+            title = "Article Text"  # Default title for text input
+            article_text = article_request.get_text()
+            logger.info(f"Request {request_id}: Processing provided text")
+
+        # Check for text length after extraction
+        if len(article_text) > 50000:  # 50KB processing limit
+            logger.warning(f"Request {request_id}: Text too long for processing")
+            response.add_warning(
+                "TEXT_TRUNCATED", "Article text was truncated to 50KB for processing"
+            )
+            article_text = article_text[:50000]
+
+        response.article_title = title
+        response.article_text = article_text
+
+        # Initialize AI services
+        location_extractor, summarizer = get_ai_services()
+
+        # Extract locations using AI
+        try:
+            extracted_locations = location_extractor.extract_locations(article_text)
+            logger.info(
+                f"Request {request_id}: Extracted {len(extracted_locations)} locations"
+            )
+        except RateLimitError:
+            logger.warning(f"Request {request_id}: Rate limit exceeded")
+            return jsonify(
+                {"error": "API rate limit exceeded. Please try again in a few moments."}
+            ), 429
+
+        if not extracted_locations:
+            processing_time = time.time() - start_time
+            response.processing_time = processing_time
+            return jsonify(response.model_dump())
+
+        # Process locations through geocoding and summarization pipeline
+        locations, geo_data_list = location_processor.process_locations_pipeline(
+            extracted_locations, article_text, summarizer, response, request_id
+        )
+
+        # Apply spatial hierarchical filtering
+        locations = location_processor.apply_spatial_filtering(
+            locations, geo_data_list, response, request_id
+        )
+
+        processing_time = time.time() - start_time
+        response.locations = locations
+        response.processing_time = processing_time
+
+        return jsonify(response.model_dump())
+
+    except Exception as e:
+        logger.error(f"Request {request_id}: Processing failed: {str(e)}")
+        return jsonify({"error": f"Processing failed: {str(e)}"}), 500
 
 
 @bp.route("/results/<session_id>", methods=["GET"])

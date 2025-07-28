@@ -105,11 +105,11 @@ class TestExtractEndpoint:
             "/api/extract", json={"input": "https://example.com/article"}
         )
 
-        # New async API returns 200 with session_id immediately
-        assert response.status_code == 200
+        # Direct API returns error immediately
+        assert response.status_code == 400
         data = json.loads(response.data)
-        assert "session_id" in data
-        assert data["status"] == "processing"
+        assert "error" in data
+        assert "Network error" in data["error"]
 
     @patch("app.api.routes.article_extractor")
     def test_extract_url_no_content(self, mock_extractor, client):
@@ -120,11 +120,11 @@ class TestExtractEndpoint:
             "/api/extract", json={"input": "https://example.com/article"}
         )
 
-        # New async API returns 200 with session_id immediately
-        assert response.status_code == 200
+        # Direct API returns error immediately for no content
+        assert response.status_code == 400
         data = json.loads(response.data)
-        assert "session_id" in data
-        assert data["status"] == "processing"
+        assert "error" in data
+        assert "No readable content found" in data["error"]
 
     @patch("app.api.routes.get_ai_services")
     def test_extract_rate_limit_error(self, mock_ai_services, client):
@@ -140,11 +140,11 @@ class TestExtractEndpoint:
             json={"input": "This is a test article about Paris, France."},
         )
 
-        # New async API returns 200 with session_id immediately
-        assert response.status_code == 200
+        # Direct API returns 429 for rate limit error
+        assert response.status_code == 429
         data = json.loads(response.data)
-        assert "session_id" in data
-        assert data["status"] == "processing"
+        assert "error" in data
+        assert "rate limit exceeded" in data["error"].lower()
 
     def test_input_validation_edge_cases(self, client):
         """Test Pydantic validation with various edge cases"""
@@ -181,7 +181,7 @@ class TestExtractEndpoint:
 
     def test_url_vs_text_detection(self, client):
         """Test URL detection logic without mocking"""
-        # Valid URLs should be processed as URLs (not fail validation)
+        # Valid URLs should be processed as URLs but will fail extraction
         url_inputs = [
             "https://example.com/article",
             "http://news.site.com/story",
@@ -190,8 +190,10 @@ class TestExtractEndpoint:
 
         for url_input in url_inputs:
             response = client.post("/api/extract", json={"input": url_input})
-            # Should not fail validation (400), but may fail extraction (422/500)
-            assert response.status_code in [200, 422, 500]
+            # URLs will fail extraction (400) since they're not real
+            assert response.status_code == 400
+            data = json.loads(response.data)
+            assert "error" in data
 
     @pytest.mark.skipif(
         not os.getenv("GEMINI_API_KEY"),
@@ -206,16 +208,20 @@ class TestExtractEndpoint:
         if response.status_code == 200:
             data = json.loads(response.data)
 
-            # New async API returns session_id and processing status
-            required_fields = ["session_id", "status", "message"]
+            # Direct API returns results immediately
+            required_fields = [
+                "article_text",
+                "article_title",
+                "locations",
+                "processing_time",
+            ]
             for field in required_fields:
                 assert field in data
 
-            assert data["status"] == "processing"
-            assert "session_id" in data
-
-            # In the new async API, results would need to be fetched from /api/results/<session_id>
-            # after processing completes via SSE events
+            assert data["article_text"] == test_input
+            assert data["article_title"] == "Article Text"
+            assert isinstance(data["locations"], list)
+            assert isinstance(data["processing_time"], (int, float))
 
 
 if __name__ == "__main__":
