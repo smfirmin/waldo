@@ -111,7 +111,7 @@ class LocationProcessor:
         # Use ThreadPoolExecutor for parallel processing
         locations = []
         geo_data_list = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             future_to_location = {
                 executor.submit(process_location, loc): loc.standardized_name
                 for loc in extracted_locations
